@@ -14,5 +14,5 @@ docker run -d \
   adminer:latest
 
 # Output success message
-echo "Adminer is running in the container '$ADMINER_CONTAINER_NAME' on network '$ADMINER_PORT'."
+echo "Adminer is running in the container '$ADMINER_CONTAINER_NAME' on network '$ADMINER_NETWORK'."
 echo "Access Adminer at: http://localhost:$ADMINER_PORT"
