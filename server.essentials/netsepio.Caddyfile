@@ -1,0 +1,96 @@
+# The Caddyfile is an easy way to configure your Caddy web server.
+#
+# Unless the file starts with a global options block, the first
+# uncommented line is always the address of your site.
+#
+# To use your own domain name (with automatic HTTPS), first make
+# sure your domain's A/AAAA DNS records are properly pointed to
+# this machine's public IP, then replace ":80" below with your
+# domain name.
+
+gateway.netsepio.com {
+    reverse_proxy 172.18.0.1:3000
+    log {
+        output file /var/log/caddy/gateway.access.log {
+            roll_size 3MiB
+            roll_keep 5
+            roll_keep_for 48h
+        }
+        format console
+    }
+    encode gzip zstd
+    tls support@netsepio.com {
+        protocols tls1.2 tls1.3
+    }
+}
+
+gateway.erebrus.io {
+    reverse_proxy 172.18.0.1:9000
+    log {
+        output file /var/log/caddy/gateway-erebrus.access.log {
+            roll_size 3MiB
+            roll_keep 5
+            roll_keep_for 48h
+        }
+        format console
+    }
+    encode gzip zstd
+    tls support@netsepio.com {
+        protocols tls1.2 tls1.3
+    }
+}
+
+# Updated IPFS Reverse Proxies with erebrus.io
+ipfs.erebrus.io {
+    reverse_proxy  127.0.0.1:5001
+    reverse_proxy /ipfs/* 127.0.0.1:8080  
+    
+    reverse_proxy 172.18.0.1:8080
+    log {
+        output file /var/log/caddy/ipfs.access.log {
+            roll_size 3MiB
+            roll_keep 5
+            roll_keep_for 48h
+        }
+        format console
+    }
+    encode gzip zstd
+    tls support@netsepio.com {
+        protocols tls1.2 tls1.3
+    }
+}
+
+api.ipfs.erebrus.io {
+    reverse_proxy 172.18.0.1:5001
+    log {
+        output file /var/log/caddy/api-ipfs.access.log {
+            roll_size 3MiB
+            roll_keep 5
+            roll_keep_for 48h
+        }
+        format console
+    }
+    encode gzip zstd
+    tls support@netsepio.com {
+        protocols tls1.2 tls1.3
+    }
+}
+
+adminer.netsepio.com {
+    reverse_proxy 172.18.0.1:6060
+    log {
+        output file /var/log/caddy/adminer.access.log {
+            roll_size 3MiB
+            roll_keep 5
+            roll_keep_for 48h
+        }
+        format console
+    }
+    encode gzip zstd
+    tls support@netsepio.com {
+        protocols tls1.2 tls1.3
+    }
+}
+
+# Refer to the Caddy docs for more information:
+# https://caddyserver.com/docs/caddyfile
