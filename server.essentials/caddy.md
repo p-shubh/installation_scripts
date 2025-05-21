@@ -1,8 +1,9 @@
 # Caddy Installation Command
 
-```curl -sSL https://raw.githubusercontent.com/p-shubh/installation_scripts/main/server.essentials/caddy.sh | bash```
+``curl -sSL https://raw.githubusercontent.com/p-shubh/installation_scripts/main/server.essentials/caddy.sh | bash``
 
-In CaddyFile: 
+In CaddyFile:
+
 * nano /etc/caddy/Caddyfile
 
 ```
@@ -54,3 +55,11 @@ website.example.com {
     }
 }
 ```
+
+next after setup
+
+**caddy restart**
+sudo systemctl restart caddy
+
+**caddy status**
+sudo systemctl status caddy
