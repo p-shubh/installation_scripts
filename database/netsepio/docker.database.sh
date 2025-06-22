@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set environment variables
-DB_USERNAME=admin
+DB_USERNAME="admin"
 DB_PASSWORD=6pKuf9yw4o4FkZIh
 DB_NAME=netsepio
 DB_PORT=5432
