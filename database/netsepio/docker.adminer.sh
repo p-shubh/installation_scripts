@@ -14,6 +14,6 @@ docker run -d \
     --name="netsepio-adminer" \
     --network=$NETWORK_NAME \
     -p 8080:8080 \
-    adminer:latest
+    adminer:4.8.1
 
 echo "Adminer container is up and running."
