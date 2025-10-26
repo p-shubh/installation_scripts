@@ -24,9 +24,12 @@ fi
 
 # Remove volumes related to Traefik
 echo "🧾 Removing any Traefik Docker volumes..."
-docker volume rm $(docker volume ls -q | grep traefik || true) >/dev/null 2>&1 || true
+volumes=$(docker volume ls -q | grep traefik || true)
+if [ -n "$volumes" ]; then
+  docker volume rm $volumes >/dev/null 2>&1 || true
+fi
 
-# Remove any Traefik configuration directories (commonly used)
+# Remove any Traefik configuration directories
 CONFIG_PATHS=(
   "/etc/traefik"
   "/opt/traefik"
@@ -56,7 +59,7 @@ if [ -f "/usr/local/bin/traefik" ]; then
   rm -f /usr/local/bin/traefik
 fi
 
-# Optional: prune unused Docker objects
+# Optional Docker prune
 read -p "🧼 Do you also want to prune unused Docker resources? [y/N]: " confirm
 if [[ "$confirm" =~ ^[Yy]$ ]]; then
   docker system prune -af --volumes
