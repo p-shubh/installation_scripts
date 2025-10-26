@@ -16,7 +16,7 @@ if docker images --format '{{.Repository}}' | grep -q 'traefik'; then
   docker rmi $(docker images traefik -q) >/dev/null 2>&1 || true
 fi
 
-# Remove Traefik network if created
+# Remove Traefik Docker network if created
 if docker network ls --format '{{.Name}}' | grep -q 'traefik'; then
   echo "🔌 Removing Traefik Docker network..."
   docker network rm traefik >/dev/null 2>&1 || true
@@ -59,7 +59,7 @@ if [ -f "/usr/local/bin/traefik" ]; then
   rm -f /usr/local/bin/traefik
 fi
 
-# Optional Docker prune
+# Optional Docker prune (confirmation)
 read -p "🧼 Do you also want to prune unused Docker resources? [y/N]: " confirm
 if [[ "$confirm" =~ ^[Yy]$ ]]; then
   docker system prune -af --volumes
