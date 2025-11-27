@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set environment variables
-NETWORK_NAME=netsepio_prod_network
+NETWORK_NAME=ipfs_prod_network
 
 # Ensure the Docker network exists
 docker network inspect $NETWORK_NAME >/dev/null 2>&1 || \
@@ -9,7 +9,7 @@ docker network inspect $NETWORK_NAME >/dev/null 2>&1 || \
 
 echo "Docker network $NETWORK_NAME is ready."
 
-# Run IPFS node container
+# Run IPFS node container and add treafik labels use domain ipfs.netsepio.com
 docker run -d \
     --name="netsepio-ipfs" \
     --network=$NETWORK_NAME \
