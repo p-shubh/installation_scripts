@@ -136,3 +136,58 @@ chmod +x github-repo.sh
 ```
 
 ---
+
+Here’s the **GitHub CLI (`gh`) command** to **give a GitHub user access to a repository** 👇
+
+---
+
+## ✅ Give Access to a Repository (Add Collaborator)
+
+```bash
+gh repo add-collaborator <owner>/<repo-name> <github-username>
+```
+
+### Example
+
+```bash
+gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe
+```
+
+This sends an **invitation** to the user.
+
+---
+
+## 🔐 Give Access with Specific Permission
+
+```bash
+gh repo add-collaborator <owner>/<repo-name> <github-username> --permission <level>
+```
+
+### Permission Levels
+
+* `pull`  → Read-only
+* `push`  → Write access
+* `maintain` → Maintain (no destructive admin rights)
+* `admin` → Full access
+
+### Example
+
+```bash
+gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe --permission push
+```
+
+---
+
+## 📌 Notes
+
+* The user must **accept the invite**
+* You must have **admin rights** on the repo
+* Works for **private and public** repositories
+
+---
+
+## 🔍 Check Collaborators
+
+```bash
+gh api repos/<owner>/<repo-name>/collaborators
+```
