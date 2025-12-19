@@ -66,4 +66,73 @@ This deletes every secret inside the `prod` environment.
 
 ---
 
+````md
+# GitHub Repo Commands (gh CLI)
 
+## Create a Private Repository with README
+```bash
+gh repo create <repo-name> --private --add-readme
+````
+
+## Delete a Repository (Permanent)
+
+⚠️ This action cannot be undone.
+
+```bash
+gh repo delete <owner>/<repo-name> --yes
+```
+
+## Requirements
+
+* GitHub CLI installed
+* Logged in via `gh auth login`
+
+````
+
+---
+
+## ✅ Bash Script Version (Safe & Reusable)
+
+### `github-repo.sh`
+
+```bash
+#!/bin/bash
+
+ACTION=$1
+REPO=$2
+
+if [[ -z "$ACTION" || -z "$REPO" ]]; then
+  echo "Usage:"
+  echo "  Create repo : ./github-repo.sh create <repo-name>"
+  echo "  Delete repo : ./github-repo.sh delete <owner>/<repo-name>"
+  exit 1
+fi
+
+if [[ "$ACTION" == "create" ]]; then
+  gh repo create "$REPO" --private --add-readme
+  echo "✅ Repository created: $REPO"
+
+elif [[ "$ACTION" == "delete" ]]; then
+  echo "⚠️ Deleting repository: $REPO"
+  gh repo delete "$REPO" --yes
+  echo "🗑️ Repository deleted: $REPO"
+
+else
+  echo "❌ Invalid action. Use create or delete."
+fi
+````
+
+### Make it executable
+
+```bash
+chmod +x github-repo.sh
+```
+
+### Usage
+
+```bash
+./github-repo.sh create my-private-repo
+./github-repo.sh delete ans-mishra/testingPrivateRepsitoryCreation
+```
+
+---
