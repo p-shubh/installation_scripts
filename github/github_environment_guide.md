@@ -32,7 +32,7 @@ REDIS_PASS=xyz
 
 ```bash
 while IFS='=' read -r key value; do
-  gh secret set "$key"     --env prod     --body "$value"     --repo ans-mishra/mikayla_whitelabel
+  gh secret set "$key"     --env prod     --body "$value"     --repo ans-mishra/noah_whitelabel
 done < prod.env
 ```
 
