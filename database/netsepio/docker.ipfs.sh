@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set environment variables
-NETWORK_NAME=ipfs_prod_network
+NETWORK_NAME=netsepio_prod_network
 
 # Ensure the Docker network exists
 docker network inspect $NETWORK_NAME >/dev/null 2>&1 || \
@@ -22,6 +22,5 @@ docker run -d \
   -e IPFS_AUTO_TLS=false \
   -e IPFS_PROFILE=server \
   ipfs/kubo:latest
-
 
 echo "IPFS node container is up and running."
