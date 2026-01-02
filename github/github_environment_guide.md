@@ -66,13 +66,47 @@ This deletes every secret inside the `prod` environment.
 
 ---
 
-````md
+
 # GitHub Repo Commands (gh CLI)
 
 ## Create a Private Repository with README
 ```bash
 gh repo create <repo-name> --private --add-readme
 ````
+
+✅ Correct way to add a collaborator using gh
+
+Run this 👇
+
+gh api \
+  -X PUT \
+  repos/ans-mishra/neurolov_whitelabel/collaborators/Abhishekk24 \
+  -f permission=push
+
+Permission options
+
+pull → Read only
+
+push → Read + Write
+
+admin → Full access
+
+🔐 Requirements (important)
+
+You must be repo owner or have admin access
+
+You must be logged in via:
+
+gh auth status
+
+
+If not logged in:
+
+gh auth login
+
+🔍 Verify collaborator added
+gh api repos/ans-mishra/neurolov_whitelabel/collaborators
+
 
 ## Delete a Repository (Permanent)
 
