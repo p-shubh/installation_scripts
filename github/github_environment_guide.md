@@ -32,7 +32,7 @@ REDIS_PASS=xyz
 
 ```bash
 while IFS='=' read -r key value; do
-  gh secret set "$key"     --env prod     --body "$value"     --repo ans-mishra/noah_whitelabel
+  gh secret set "$key"     --env prod     --body "$value"     --repo ans-mishra/neurolov_whitelabel
 done < prod.env
 ```
 
@@ -225,3 +225,94 @@ gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe --pe
 ```bash
 gh api repos/<owner>/<repo-name>/collaborators
 ```
+
+
+Good question — GitHub **does not provide a direct `gh` command** like
+`gh repo env create` yet.
+
+But you **can create an Environment from the command line** using **GitHub API via `gh api`** ✅
+
+---
+
+## ✅ Create a new Environment using CLI
+
+### Syntax
+
+```bash
+gh api \
+  -X PUT \
+  repos/<OWNER>/<REPO>/environments/<ENV_NAME>
+```
+
+### Your example (replace if needed)
+
+```bash
+gh api \
+  -X PUT \
+  repos/ans-mishra/neurolov_whitelabel/environments/production
+```
+
+✔️ This instantly creates the environment
+✔️ No output means **success**
+
+---
+
+## 🔍 Verify environment exists
+
+```bash
+gh api repos/ans-mishra/neurolov_whitelabel/environments
+```
+
+You should see `production` listed.
+
+---
+
+## 🔐 Add protection rules (optional but common)
+
+### Require reviewers for deployment
+
+```bash
+gh api \
+  -X PUT \
+  repos/ans-mishra/neurolov_whitelabel/environments/production \
+  -f reviewers[][type]=User \
+  -f reviewers[][id]=<GITHUB_USER_ID>
+```
+
+> ⚠️ Reviewer **ID** is required, not username
+> To get user ID:
+
+```bash
+gh api users/Abhishekk24 --jq '.id'
+```
+
+---
+
+## 🔑 Add environment secrets (very important)
+
+```bash
+gh secret set DB_PASSWORD \
+  --env production \
+  --repo ans-mishra/neurolov_whitelabel
+```
+
+---
+
+## 🧠 How this ties to GitHub Actions
+
+In workflow YAML:
+
+```yaml
+jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest
+```
+
+GitHub will:
+
+* Use that environment
+* Enforce approvals
+* Inject environment secrets
+
+---
