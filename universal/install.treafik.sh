@@ -84,7 +84,7 @@ version: "3.8"
 
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: traefik
     restart: always
     command:
