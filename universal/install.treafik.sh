@@ -8,7 +8,7 @@
 set -e
 
 TRAEFIK_DIR="/opt/traefik"
-EMAIL="support@cyreneai.com"
+EMAIL="support@sprkclub.fun"
 
 echo "🚀 Starting Traefik Core Installation..."
 
