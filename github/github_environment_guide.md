@@ -32,8 +32,8 @@ REDIS_PASS=xyz
 
 ```bash
 while IFS='=' read -r key value; do
-  gh secret set "$key"     --env prod     --body "$value"     --repo ans-mishra/neurolov_whitelabel
-done < prod.env
+  gh secret set "$key"     --env prod     --body "$value"     --repo CyreneAI/cyrene-presale
+done < prod1.env
 ```
 
 ### Example

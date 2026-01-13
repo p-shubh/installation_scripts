@@ -24,4 +24,5 @@ go.work.sum
 # env file
 .env
 /github/prod.env
+/github/prod1.env
 /github/env (2)
