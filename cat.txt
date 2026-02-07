@@ -1,0 +1,224 @@
+name: Build & Deploy to aidp_whitelabel - Production
+
+
+
+on:
+  push:
+    branches:
+      - main
+
+
+
+jobs:
+  build-and-push:
+    name: Build & Push to GHCR to main
+    runs-on: ubuntu-latest
+    environment: prod
+
+
+
+    permissions:
+      contents: read
+      packages: write
+
+
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+
+      - name: Build & Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/ans-mishra/aidp-whitelabel:prod
+          build-args: |
+            API_BASE_URL=${{ secrets.API_BASE_URL }}
+            MESSAGE_API_URL=${{ secrets.MESSAGE_API_URL }}
+            CYRENE_AI_ID=${{ secrets.CYRENE_AI_ID }}
+            TTS_API_URL=${{ secrets.TTS_API_URL }}
+            MODEL_PROVIDER=${{ secrets.MODEL_PROVIDER }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            NEXT_PUBLIC_PROJECT_ID=${{ secrets.NEXT_PUBLIC_PROJECT_ID }}
+            NEXT_PUBLIC_HELIUS_API_KEY=${{ secrets.NEXT_PUBLIC_HELIUS_API_KEY }}
+            NEXT_PUBLIC_SOLANA_RPC_URL=${{ secrets.NEXT_PUBLIC_SOLANA_RPC_URL }}
+            NEXT_PUBLIC_ALCHEMY_API_KEY=${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+            NEXT_PUBLIC_TREASURY_ADDRESS=${{ secrets.NEXT_PUBLIC_TREASURY_ADDRESS }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_1=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_1 }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_2=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_2 }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_3=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_3 }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_TWITTER_CLIENT_ID=${{ secrets.NEXT_PUBLIC_TWITTER_CLIENT_ID }}
+            TWITTER_CLIENT_SECRET=${{ secrets.TWITTER_CLIENT_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_BIRDEYE_API_KEY=${{ secrets.NEXT_PUBLIC_BIRDEYE_API_KEY }}
+            NEXT_PUBLIC_BLOCKEND_API_KEY=${{ secrets.NEXT_PUBLIC_BLOCKEND_API_KEY }}
+            NEXT_PUBLIC_BLOCKEND_INTEGRATOR_ID=${{ secrets.NEXT_PUBLIC_BLOCKEND_INTEGRATOR_ID }}
+            NEXT_PUBLIC_LAVAOS_API_KEY=${{ secrets.NEXT_PUBLIC_LAVAOS_API_KEY }}
+            NEXT_PUBLIC_JITO_TIP_ENDPOINT=${{ secrets.NEXT_PUBLIC_JITO_TIP_ENDPOINT }}
+            NEXT_PUBLIC_JITO_BUNDLE_ENDPOINT=${{ secrets.NEXT_PUBLIC_JITO_BUNDLE_ENDPOINT }}
+            NEXT_PUBLIC_JITO_TIP_ACCOUNT=${{ secrets.NEXT_PUBLIC_JITO_TIP_ACCOUNT }}
+            NEXT_PUBLIC_USE_LOCAL_STREAMING=${{ secrets.NEXT_PUBLIC_USE_LOCAL_STREAMING }}
+            NEXT_PUBLIC_LOCAL_STREAMING_API=${{ secrets.NEXT_PUBLIC_LOCAL_STREAMING_API }}
+            NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+            NEXT_PUBLIC_ASTRALANE_API_KEY=${{ secrets.NEXT_PUBLIC_ASTRALANE_API_KEY }}
+            ADDITIONAL_SIGNER_KEY=${{ secrets.ADDITIONAL_SIGNER_KEY }}
+            UPSTASH_REDIS_REST_URL=${{ secrets.UPSTASH_REDIS_REST_URL }}
+            UPSTASH_REDIS_REST_TOKEN=${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}  
+            CYRENE_TEAM_ADDRESSES=${{ secrets.CYRENE_TEAM_ADDRESSES }}
+            HELIUS_API_KEY=${{ secrets.NEXT_PUBLIC_HELIUS_API_KEY }}
+
+
+
+
+  # 2️⃣ Deploy to Both Production Servers
+  deploy:
+    name: Deploy to Both aidp Servers
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: prod
+
+
+
+    # strategy:
+    #   matrix:
+    #     include:
+    #       - name: server1
+    #         host_secret: PROD_SERVER_1_HOST
+    #       - name: server2
+    #         host_secret: PROD_SERVER_2_HOST
+    #   max-parallel: 2
+
+
+
+    steps:
+      # - name: Get Server Host from Secrets
+      #   id: get_host
+      #   run: |
+      #     if [ "${{ matrix.name }}" = "server1" ]; then
+      #       echo "host=${{ vars.REMOTE_SERVER_ADDRESS1 }}" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "host=${{ vars.REMOTE_SERVER_ADDRESS2 }}" >> $GITHUB_OUTPUT
+      #     fi
+
+
+
+      # - name: Deploy to ${{ matrix.name }}
+      - name: Deploy to Production Server
+
+
+
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          # host: ${{ steps.get_host.outputs.host }}
+          host: ${{ vars.REMOTE_SERVER_ADDRESS }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.REMOTE_SERVER_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            echo "📂 Navigating to home directory..."
+            mkdir -p aidp_whitelabel && cd aidp_whitelabel
+
+
+
+            echo "🔑 Logging in to GitHub Container Registry (GHCR)..."
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+
+
+
+
+
+            echo "🛑 Stopping and removing existing container (if running)..."
+            docker stop aidp || true
+            docker rm aidp || true
+
+
+
+            echo "🧹 Removing old images to free up space..."
+            docker system prune -f
+
+
+
+            echo "🚀 Pulling the latest production image..."
+            docker pull ghcr.io/ans-mishra/aidp-whitelabel:prod
+
+
+
+            echo "📄 Creating environment file..."
+            cat <<EOF > .env
+            API_BASE_URL=${{ secrets.API_BASE_URL }}
+            MESSAGE_API_URL=${{ secrets.MESSAGE_API_URL }}
+            CYRENE_AI_ID=${{ secrets.CYRENE_AI_ID }}
+            TTS_API_URL=${{ secrets.TTS_API_URL }}
+            MODEL_PROVIDER=${{ secrets.MODEL_PROVIDER }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            NEXT_PUBLIC_PROJECT_ID=${{ secrets.NEXT_PUBLIC_PROJECT_ID }}
+            NEXT_PUBLIC_HELIUS_API_KEY=${{ secrets.NEXT_PUBLIC_HELIUS_API_KEY }}
+            NEXT_PUBLIC_SOLANA_RPC_URL=${{ secrets.NEXT_PUBLIC_SOLANA_RPC_URL }}
+            NEXT_PUBLIC_ALCHEMY_API_KEY=${{ secrets.NEXT_PUBLIC_ALCHEMY_API_KEY }}
+            NEXT_PUBLIC_TREASURY_ADDRESS=${{ secrets.NEXT_PUBLIC_TREASURY_ADDRESS }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_1=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_1 }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_2=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_2 }}
+            NEXT_PUBLIC_ADMIN_ADDRESS_3=${{ secrets.NEXT_PUBLIC_ADMIN_ADDRESS_3 }}
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_TWITTER_CLIENT_ID=${{ secrets.NEXT_PUBLIC_TWITTER_CLIENT_ID }}
+            TWITTER_CLIENT_SECRET=${{ secrets.TWITTER_CLIENT_SECRET }}
+            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_BIRDEYE_API_KEY=${{ secrets.NEXT_PUBLIC_BIRDEYE_API_KEY }}
+            NEXT_PUBLIC_BLOCKEND_API_KEY=${{ secrets.NEXT_PUBLIC_BLOCKEND_API_KEY }}
+            NEXT_PUBLIC_BLOCKEND_INTEGRATOR_ID=${{ secrets.NEXT_PUBLIC_BLOCKEND_INTEGRATOR_ID }}
+            NEXT_PUBLIC_LAVAOS_API_KEY=${{ secrets.NEXT_PUBLIC_LAVAOS_API_KEY }}
+            NEXT_PUBLIC_JITO_TIP_ENDPOINT=${{ secrets.NEXT_PUBLIC_JITO_TIP_ENDPOINT }}
+            NEXT_PUBLIC_JITO_BUNDLE_ENDPOINT=${{ secrets.NEXT_PUBLIC_JITO_BUNDLE_ENDPOINT }}
+            NEXT_PUBLIC_JITO_TIP_ACCOUNT=${{ secrets.NEXT_PUBLIC_JITO_TIP_ACCOUNT }}
+            NEXT_PUBLIC_USE_LOCAL_STREAMING=${{ secrets.NEXT_PUBLIC_USE_LOCAL_STREAMING }}
+            NEXT_PUBLIC_LOCAL_STREAMING_API=${{ secrets.NEXT_PUBLIC_LOCAL_STREAMING_API }}
+            NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+            NEXT_PUBLIC_ASTRALANE_API_KEY=${{ secrets.NEXT_PUBLIC_ASTRALANE_API_KEY }}
+            ADDITIONAL_SIGNER_KEY=${{ secrets.ADDITIONAL_SIGNER_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
+            CYRENE_TEAM_ADDRESSES=${{ secrets.CYRENE_TEAM_ADDRESSES }}
+            HELIUS_API_KEY=${{ secrets.NEXT_PUBLIC_HELIUS_API_KEY }}
+            
+            EOF
+
+
+
+            echo "🐳 Running the new container..."
+            docker run -d -p 9089:3000 \
+              --name aidp \
+              --env-file .env \
+              --restart unless-stopped \
+              --label "traefik.enable=true" \
+              --label 'traefik.http.routers.cyreneai-aidp.rule=Host("aidp.cyreneai.com")' \
+              --label "traefik.http.routers.cyreneai-aidp.entrypoints=websecure" \
+              --label "traefik.http.routers.cyreneai-aidp.tls.certresolver=letsencrypt" \
+              --label "traefik.http.services.cyreneai-aidp.loadbalancer.server.port=3000" \
+              --network traefik \
+              ghcr.io/ans-mishra/aidp-whitelabel:prod
+
+
+
+            echo "✅ Deployment complete!"

@@ -25,3 +25,4 @@ go.work.sum
 .env
 /github/prod.env
 /github/env (2)
+/harsicorp/construct.txt
