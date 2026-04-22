@@ -1,0 +1,74 @@
+###############################################################################
+#  REMOTE SERVER  – docker-compose.yml
+#  Deploy this file on every server you want monitored.
+#  Services: Node Exporter · cAdvisor
+#
+#  IMPORTANT: These services are NOT exposed to the internet.
+#  Prometheus on the central server scrapes them via private/VPC IPs.
+#  Bind to 0.0.0.0 only if you have firewall rules limiting access to
+#  the central server's IP.
+###############################################################################
+
+networks:
+  exporters:
+    driver: bridge
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NODE EXPORTER  – Host-level metrics (CPU, RAM, Disk, Network, etc.)
+  # Exposes: :9100/metrics
+  # ──────────────────────────────────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    pid: host                  # required to read host process info
+    command:
+      - "--path.rootfs=/host"
+      # Exclude virtual/overlay filesystems from disk metrics
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      # Enable additional collectors
+      - "--collector.systemd"
+      - "--collector.processes"
+      - "--collector.tcpstat"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    # Bind only to the private/VPC interface.
+    # Replace 10.0.1.10 with this server's private IP.
+    ports:
+      - "0.0.0.0:9100:9100"
+    network_mode: host         # uses host networking for accurate interface stats
+    security_opt:
+      - no-new-privileges:true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # cADVISOR  – Container-level metrics (CPU, RAM, network per container)
+  # Exposes: :8080/metrics
+  # ──────────────────────────────────────────────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /cgroup:/cgroup:ro
+    command:
+      - "--housekeeping_interval=10s"
+      - "--docker_only=true"
+      - "--disable_metrics=disk,diskIO,tcp,udp,percpu,sched,process"
+    ports:
+      - "0.0.0.0:8080:8080"
+    networks:
+      - exporters
+    security_opt:
+      - no-new-privileges:true

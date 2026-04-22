@@ -1,0 +1,157 @@
+###############################################################################
+#  prometheus.yml – Central Prometheus configuration
+#  Supports: static configs · file-based SD · environment labels
+###############################################################################
+
+global:
+  scrape_interval:     15s      # Default scrape cadence
+  evaluation_interval: 15s      # Rule evaluation cadence
+  scrape_timeout:      10s
+
+  # Attach these labels to ALL time series produced by this Prometheus instance
+  external_labels:
+    monitor: 'central-prometheus'
+    region:  'us-east-1'        # ← adjust to your region
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ALERTMANAGER
+# ─────────────────────────────────────────────────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093   # Docker DNS name inside the monitoring network
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ALERT RULE FILES
+# ─────────────────────────────────────────────────────────────────────────────
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SCRAPE CONFIGS
+# ─────────────────────────────────────────────────────────────────────────────
+scrape_configs:
+
+  # ── 1. Prometheus itself ──────────────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          environment: 'central'
+          role:        'monitoring'
+
+  # ── 2. Traefik metrics ───────────────────────────────────────────────────
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8082']
+        labels:
+          environment: 'central'
+
+  # ── 3. Central server – Node Exporter ────────────────────────────────────
+  - job_name: 'node-exporter-central'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          environment: 'central'
+          hostname:    'central-server'
+          role:        'monitoring'
+
+  # ── 4. Central server – cAdvisor ─────────────────────────────────────────
+  - job_name: 'cadvisor-central'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          environment: 'central'
+          hostname:    'central-server'
+
+  # ── 5. PRODUCTION servers – Node Exporter (static config) ────────────────
+  #  Add one entry per production server (use private/VPC IPs).
+  - job_name: 'node-exporter-prod'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - '10.0.1.10:9100'    # prod-app-01
+          - '10.0.1.11:9100'    # prod-app-02
+          - '10.0.1.12:9100'    # prod-db-01
+        labels:
+          environment: 'prod'
+          region:      'us-east-1'
+      - targets:
+          - '10.0.2.10:9100'    # prod-app-03 (us-west-2)
+        labels:
+          environment: 'prod'
+          region:      'us-west-2'
+    relabel_configs:
+      # Capture the instance IP as a human-readable label
+      - source_labels: [__address__]
+        target_label:  instance
+        regex:         '([^:]+):\d+'
+        replacement:   '$1'
+
+  # ── 6. PRODUCTION servers – cAdvisor ────────────────────────────────────
+  - job_name: 'cadvisor-prod'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - '10.0.1.10:8080'
+          - '10.0.1.11:8080'
+          - '10.0.1.12:8080'
+          - '10.0.2.10:8080'
+        labels:
+          environment: 'prod'
+
+  # ── 7. STAGING servers ───────────────────────────────────────────────────
+  - job_name: 'node-exporter-staging'
+    scrape_interval: 30s    # less frequent for non-prod
+    static_configs:
+      - targets:
+          - '10.1.0.10:9100'    # staging-app-01
+          - '10.1.0.11:9100'    # staging-app-02
+        labels:
+          environment: 'staging'
+
+  - job_name: 'cadvisor-staging'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - '10.1.0.10:8080'
+          - '10.1.0.11:8080'
+        labels:
+          environment: 'staging'
+
+  # ── 8. DEV servers ────────────────────────────────────────────────────────
+  - job_name: 'node-exporter-dev'
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - '10.2.0.10:9100'
+        labels:
+          environment: 'dev'
+
+  - job_name: 'cadvisor-dev'
+    scrape_interval: 60s
+    static_configs:
+      - targets:
+          - '10.2.0.10:8080'
+        labels:
+          environment: 'dev'
+
+  # ── 9. FILE-BASED Service Discovery (SD) ─────────────────────────────────
+  #  Drop JSON/YAML target files into /etc/prometheus/sd/ to add servers
+  #  dynamically without restarting Prometheus.
+  #
+  #  Example file: /etc/prometheus/sd/prod-targets.json
+  #  [{"targets":["10.0.1.20:9100"],"labels":{"environment":"prod","hostname":"new-app"}}]
+  #
+  - job_name: 'node-exporter-file-sd'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/sd/*.json'
+          - '/etc/prometheus/sd/*.yml'
+        refresh_interval: 30s   # re-read files every 30 s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label:  instance
+        regex:         '([^:]+):\d+'
+        replacement:   '$1'

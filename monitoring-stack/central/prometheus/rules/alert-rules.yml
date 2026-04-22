@@ -1,0 +1,207 @@
+###############################################################################
+#  alert-rules.yml – Production alert rules
+#  Covers: CPU · Memory · Disk · Instance availability · Container health
+###############################################################################
+
+groups:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  HOST ALERTS
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: host.alerts
+    interval: 30s
+    rules:
+
+      # ── Instance down ────────────────────────────────────────────────────
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} is DOWN"
+          description: >
+            Job {{ $labels.job }} on {{ $labels.instance }}
+            ({{ $labels.environment }}) has been unreachable for > 2 minutes.
+
+      # ── High CPU ─────────────────────────────────────────────────────────
+      - alert: HighCpuUsage
+        expr: |
+          (
+            1 - avg by(instance, environment) (
+              rate(node_cpu_seconds_total{mode="idle"}[5m])
+            )
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: >
+            CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}
+            ({{ $labels.environment }}) for the last 5 minutes.
+
+      - alert: CriticalCpuUsage
+        expr: |
+          (
+            1 - avg by(instance, environment) (
+              rate(node_cpu_seconds_total{mode="idle"}[5m])
+            )
+          ) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL CPU on {{ $labels.instance }}"
+          description: >
+            CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}
+            ({{ $labels.environment }}) for the last 2 minutes.
+
+      # ── High Memory ───────────────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+            / node_memory_MemTotal_bytes
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: >
+            Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}
+            ({{ $labels.environment }}).
+            Total: {{ $labels.instance }} Available memory is critically low.
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+            / node_memory_MemTotal_bytes
+          ) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL memory on {{ $labels.instance }}"
+          description: >
+            Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }}
+            ({{ $labels.environment }}). OOM risk is high.
+
+      # ── Disk Usage ────────────────────────────────────────────────────────
+      - alert: HighDiskUsage
+        expr: |
+          (
+            (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+            - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"})
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+          ) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: >
+            Disk {{ $labels.mountpoint }} on {{ $labels.instance }}
+            ({{ $labels.environment }}) is {{ printf \"%.1f\" $value }}% full.
+
+      - alert: CriticalDiskUsage
+        expr: |
+          (
+            (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+            - node_filesystem_free_bytes{fstype!~"tmpfs|overlay"})
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+          ) * 100 > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL disk on {{ $labels.instance }}"
+          description: >
+            Disk {{ $labels.mountpoint }} on {{ $labels.instance }}
+            ({{ $labels.environment }}) is {{ printf \"%.1f\" $value }}% full.
+            Immediate action required!
+
+      - alert: DiskWillFillIn4Hours
+        expr: |
+          predict_linear(
+            node_filesystem_free_bytes{fstype!~"tmpfs|overlay"}[1h], 4 * 3600
+          ) < 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk will fill up within 4h on {{ $labels.instance }}"
+          description: >
+            Disk {{ $labels.mountpoint }} on {{ $labels.instance }}
+            is filling up fast — predicted full in under 4 hours.
+
+      # ── Swap Usage ────────────────────────────────────────────────────────
+      - alert: HighSwapUsage
+        expr: |
+          (
+            (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)
+            / node_memory_SwapTotal_bytes
+          ) * 100 > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High swap usage on {{ $labels.instance }}"
+          description: >
+            Swap is {{ printf \"%.1f\" $value }}% used on {{ $labels.instance }}
+            — this may indicate memory pressure.
+
+      # ── Network ───────────────────────────────────────────────────────────
+      - alert: HighNetworkErrors
+        expr: |
+          rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Network errors on {{ $labels.instance }}"
+          description: >
+            {{ $labels.instance }} is experiencing {{ printf \"%.0f\" $value }}
+            network errors/s on interface {{ $labels.device }}.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  #  CONTAINER ALERTS
+  # ─────────────────────────────────────────────────────────────────────────
+  - name: container.alerts
+    rules:
+
+      - alert: ContainerHighCpu
+        expr: |
+          rate(container_cpu_usage_seconds_total{name!=""}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU"
+          description: >
+            Container {{ $labels.name }} on {{ $labels.instance }}
+            is using {{ printf \"%.1f\" $value }}% CPU.
+
+      - alert: ContainerHighMemory
+        expr: |
+          (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory"
+          description: >
+            Container {{ $labels.name }} is using {{ printf \"%.1f\" $value }}%
+            of its memory limit.
+
+      - alert: ContainerRestarting
+        expr: |
+          increase(kube_pod_container_status_restarts_total[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.container }} restarted {{ $value }} times in the last hour."

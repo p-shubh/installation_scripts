@@ -1,0 +1,19 @@
+###############################################################################
+#  grafana/provisioning/dashboards/dashboards.yml
+#  Auto-imports JSON dashboard files from the /dashboards directory.
+###############################################################################
+
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: 'Infrastructure'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true

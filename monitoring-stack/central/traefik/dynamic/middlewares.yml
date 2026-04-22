@@ -1,0 +1,51 @@
+###############################################################################
+#  traefik/dynamic/middlewares.yml
+#  Dynamic configuration loaded by Traefik from the /etc/traefik/dynamic dir.
+#  Changes here are hot-reloaded — no restart required.
+###############################################################################
+
+http:
+  middlewares:
+
+    # ── Basic Auth ────────────────────────────────────────────────────────
+    #  Protects Prometheus and Alertmanager UIs.
+    #  Generate a password hash:
+    #    docker run --rm httpd:2.4-alpine htpasswd -nbB admin 'YourPassword123!'
+    #  Then paste the output (escape $ as $$) below.
+    basic-auth:
+      basicAuth:
+        users:
+          - "admin:$$2y$$05$$YourHashedPasswordHere"   # ← replace this
+        realm: "Monitoring – Restricted"
+        removeHeader: true    # strip Authorization header before forwarding
+
+    # ── IP Allowlist ─────────────────────────────────────────────────────
+    #  Additional layer: only allow your office/VPN IPs to reach
+    #  Prometheus and Alertmanager UIs.
+    ip-allowlist:
+      ipAllowList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"        # VPC/private network
+          - "203.0.113.0/24"    # ← replace with your office public IPs
+
+    # ── Security Headers (applied to Grafana) ────────────────────────────
+    secure-headers:
+      headers:
+        sslRedirect: true
+        forceSTSHeader: true
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "same-origin"
+        customResponseHeaders:
+          X-Powered-By: ""     # hide technology fingerprint
+
+    # ── Rate Limiting ─────────────────────────────────────────────────────
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50

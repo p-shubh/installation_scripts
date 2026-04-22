@@ -1,0 +1,222 @@
+###############################################################################
+#  CENTRAL MONITORING SERVER
+#  Services: Traefik · Prometheus · Grafana · Alertmanager
+#  Domain: monitoring.mycompany.com
+###############################################################################
+
+networks:
+  monitoring:
+    driver: bridge
+  traefik-public:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  traefik_certs:
+
+services:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # TRAEFIK  – Reverse proxy + TLS termination (Let's Encrypt)
+  # ──────────────────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      # API / Dashboard (internal only – do NOT expose publicly in prod)
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+
+      # Providers
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-public"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+
+      # Entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # HTTP → HTTPS redirect
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+
+      # Let's Encrypt (ACME)
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@mycompany.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json"
+
+      # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+
+      # Metrics (expose to Prometheus)
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/certs
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+
+    networks:
+      - traefik-public
+      - monitoring
+
+    labels:
+      - "traefik.enable=true"
+      # Traefik dashboard (restrict to internal IP in production)
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.mycompany.com`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=basic-auth@file"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # PROMETHEUS  – Metrics collection & storage
+  # ──────────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--storage.tsdb.retention.size=20GB"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"          # enables POST /-/reload
+      - "--web.enable-admin-api"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      # Prometheus UI – protected by basic auth middleware
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.mycompany.com`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.prometheus.middlewares=basic-auth@file,ip-allowlist@file"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # GRAFANA  – Dashboards & visualisation
+  # ──────────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      # Admin credentials – override via .env file in production
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-ChangeMeNow!}"
+
+      # Security hardening
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_STRICT_TRANSPORT_SECURITY: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+
+      # Server settings
+      GF_SERVER_DOMAIN: "monitoring.mycompany.com"
+      GF_SERVER_ROOT_URL: "https://monitoring.mycompany.com"
+
+      # Provisioning
+      GF_PATHS_PROVISIONING: "/etc/grafana/provisioning"
+
+      # SMTP (optional – configure for alert emails)
+      # GF_SMTP_ENABLED: "true"
+      # GF_SMTP_HOST: "smtp.mycompany.com:587"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring
+      - traefik-public
+    depends_on:
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`monitoring.mycompany.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      # Security headers middleware
+      - "traefik.http.routers.grafana.middlewares=secure-headers@file"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ALERTMANAGER  – Alert routing (Teams, email, PagerDuty…)
+  # ──────────────────────────────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=https://alertmanager.mycompany.com"
+      - "--cluster.advertise-address=0.0.0.0:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.mycompany.com`)"
+      - "traefik.http.routers.alertmanager.entrypoints=websecure"
+      - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.alertmanager.middlewares=basic-auth@file,ip-allowlist@file"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # NODE EXPORTER  – Host metrics for the central server itself
+  # ──────────────────────────────────────────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter-central
+    restart: unless-stopped
+    pid: host
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /:/host:ro,rslave
+    network_mode: host   # needed to read correct network interfaces
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # cADVISOR  – Container metrics for the central server itself
+  # ──────────────────────────────────────────────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor-central
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    networks:
+      - monitoring

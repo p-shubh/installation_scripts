@@ -1,0 +1,113 @@
+###############################################################################
+#  alertmanager.yml – Alert routing to Microsoft Teams
+#  Routes: critical → immediate · warning → batched · dev → suppressed
+###############################################################################
+
+global:
+  # How long to wait before re-sending an alert that has not been resolved
+  resolve_timeout: 5m
+
+  # SMTP (optional – for email notifications)
+  # smtp_smarthost: 'smtp.mycompany.com:587'
+  # smtp_from: 'alerts@mycompany.com'
+  # smtp_auth_username: 'alerts@mycompany.com'
+  # smtp_auth_password: 'your-smtp-password'
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  TEMPLATES
+# ─────────────────────────────────────────────────────────────────────────────
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ROUTING TREE
+# ─────────────────────────────────────────────────────────────────────────────
+route:
+  # Default receiver for unmatched alerts
+  receiver: 'teams-warnings'
+
+  # Group alerts by these label combinations
+  group_by: ['alertname', 'environment', 'instance']
+
+  # Wait this long before sending the first alert in a group
+  group_wait: 30s
+
+  # Wait this long before sending a second batch for a new alert in a group
+  group_interval: 5m
+
+  # How long before repeating an already-sent alert
+  repeat_interval: 4h
+
+  routes:
+
+    # ── Critical alerts → immediate notification ──────────────────────────
+    - match:
+        severity: critical
+      receiver: 'teams-critical'
+      group_wait:      10s
+      group_interval:  2m
+      repeat_interval: 1h
+      continue: true    # keep matching further routes
+
+    # ── Prod critical → escalate immediately ─────────────────────────────
+    - match_re:
+        severity:    'critical'
+        environment: 'prod'
+      receiver: 'teams-critical'
+      group_wait:      5s
+      group_interval:  1m
+      repeat_interval: 30m
+
+    # ── Dev/staging – less noise ──────────────────────────────────────────
+    - match_re:
+        environment: 'dev|staging'
+      receiver: 'teams-dev'
+      repeat_interval: 24h
+
+    # ── Watchdog (heartbeat) – confirm Alertmanager is alive ───────────────
+    - match:
+        alertname: Watchdog
+      receiver: 'null'
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INHIBITION RULES
+#  Suppress warning-level alerts if a critical alert is already firing
+#  for the same instance.
+# ─────────────────────────────────────────────────────────────────────────────
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance', 'environment']
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  RECEIVERS
+# ─────────────────────────────────────────────────────────────────────────────
+receivers:
+
+  # ── Discard (Watchdog) ────────────────────────────────────────────────────
+  - name: 'null'
+
+  # ── Teams: Critical channel ────────────────────────────────────────────
+  - name: 'teams-critical'
+    webhook_configs:
+      - url: 'https://mycompany.webhook.office.com/webhookb2/CRITICAL-CHANNEL-WEBHOOK-URL'
+        send_resolved: true
+        http_config:
+          tls_config:
+            insecure_skip_verify: false
+        # JSON payload formatted for MS Teams Adaptive Cards
+        # See: teams-payload-template.json for the full payload structure
+
+  # ── Teams: Warnings channel ────────────────────────────────────────────
+  - name: 'teams-warnings'
+    webhook_configs:
+      - url: 'https://mycompany.webhook.office.com/webhookb2/WARNINGS-CHANNEL-WEBHOOK-URL'
+        send_resolved: true
+
+  # ── Teams: Dev/Staging channel ────────────────────────────────────────
+  - name: 'teams-dev'
+    webhook_configs:
+      - url: 'https://mycompany.webhook.office.com/webhookb2/DEV-CHANNEL-WEBHOOK-URL'
+        send_resolved: false    # don't spam dev with resolved messages

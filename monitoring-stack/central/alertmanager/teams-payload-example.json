@@ -1,0 +1,62 @@
+{
+  "_comment": "MS Teams Adaptive Card payload – POST this to your Incoming Webhook URL.",
+  "_comment2": "Alertmanager sends its own JSON; this is the schema Teams expects.",
+  "_comment3": "Use a webhook proxy (e.g. prometheus-msteams) to transform Alertmanager JSON → Teams card.",
+
+  "type": "message",
+  "attachments": [
+    {
+      "contentType": "application/vnd.microsoft.card.adaptive",
+      "content": {
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "type": "AdaptiveCard",
+        "version": "1.4",
+        "msteams": {
+          "width": "Full"
+        },
+        "body": [
+          {
+            "type": "Container",
+            "style": "attention",
+            "items": [
+              {
+                "type": "TextBlock",
+                "text": "🔴 CRITICAL: HighCpuUsage",
+                "weight": "Bolder",
+                "size": "Large",
+                "color": "Attention",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "type": "FactSet",
+            "facts": [
+              { "title": "Severity",     "value": "Critical" },
+              { "title": "Environment",  "value": "prod" },
+              { "title": "Instance",     "value": "10.0.1.10" },
+              { "title": "Value",        "value": "96.3%" },
+              { "title": "Started at",   "value": "2024-01-15 14:32:00 UTC" },
+              { "title": "Description",  "value": "CPU usage is 96.3% on 10.0.1.10 (prod) for the last 2 minutes." }
+            ]
+          },
+          {
+            "type": "ActionSet",
+            "actions": [
+              {
+                "type": "Action.OpenUrl",
+                "title": "View in Grafana",
+                "url":   "https://monitoring.mycompany.com/d/node-exporter"
+              },
+              {
+                "type": "Action.OpenUrl",
+                "title": "View in Prometheus",
+                "url":   "https://prometheus.mycompany.com/alerts"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

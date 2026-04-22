@@ -1,0 +1,20 @@
+###############################################################################
+#  grafana/provisioning/datasources/prometheus.yml
+#  Auto-provisions Prometheus as the default data source on first run.
+###############################################################################
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger   # optional – link to Jaeger if you add tracing
