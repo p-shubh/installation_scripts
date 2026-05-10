@@ -80,7 +80,7 @@ Run this 👇
 
 gh api \
   -X PUT \
-  repos/ans-mishra/neurolov_whitelabel/collaborators/Abhishekk24 \
+  repos/ans-mishra/zygo-mobile-app/collaborators/Abhishekk24 \
   -f permission=push
 
 Permission options
