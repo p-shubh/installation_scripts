@@ -10,6 +10,8 @@
 #    directly is silently overridden. This script:
 #      1. Neutralises the conflicting line in 50-cloud-init.conf
 #      2. Writes all hardened settings to 99-harden.conf (drop-in)
+#
+#  Updated: Added STEP 5 — CVE-2026-31431 (Copy Fail) mitigation
 # =============================================================================
 
 set -euo pipefail
@@ -147,6 +149,14 @@ ufw status verbose
 info "UFW enabled."
 
 # =============================================================================
+#  STEP 5 — Mitigate CVE-2026-31431 (Copy Fail / algif_aead)
+# =============================================================================
+info "Mitigating CVE-2026-31431 — disabling algif_aead kernel module …"
+modprobe -r algif_aead 2>/dev/null || true
+echo "blacklist algif_aead" | tee /etc/modprobe.d/disable-algif-aead.conf
+info "algif_aead disabled and blacklisted."
+
+# =============================================================================
 #  DONE
 # =============================================================================
 echo ""
@@ -160,5 +170,6 @@ echo "  Password auth     : DISABLED"
 echo "  Drop-in config    : ${DROPIN_FILE}"
 echo "  Fail2ban          : active  (fail2ban-client status sshd)"
 echo "  Firewall          : active  (ufw status)"
+echo "  CVE-2026-31431    : mitigated (algif_aead blacklisted)"
 echo ""
 warn "Open a NEW terminal and verify SSH key login works BEFORE closing this session."
