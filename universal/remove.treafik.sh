@@ -45,7 +45,7 @@ for path in "${CONFIG_PATHS[@]}"; do
 done
 
 # Remove systemd service if installed
-if systemctl list-unit-files | grep -q 'traefik.service'; then
+if systemctl list-unit-files 2>/dev/null | grep -q 'traefik.service'; then
   echo "🧩 Removing systemd Traefik service..."
   systemctl stop traefik >/dev/null 2>&1 || true
   systemctl disable traefik >/dev/null 2>&1 || true
@@ -59,10 +59,15 @@ if [ -f "/usr/local/bin/traefik" ]; then
   rm -f /usr/local/bin/traefik
 fi
 
-# Optional Docker prune (confirmation)
-read -p "🧼 Do you also want to prune unused Docker resources? [y/N]: " confirm
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  docker system prune -af --volumes
+# Optional Docker prune — requires TTY; skip if piped
+if [ -t 0 ]; then
+  read -p "🧼 Do you also want to prune unused Docker resources? [y/N]: " confirm
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    docker system prune -af --volumes
+  fi
+else
+  echo "ℹ️ Skipping Docker prune prompt (non-interactive shell). Run manually if needed:"
+  echo "   docker system prune -af --volumes"
 fi
 
 echo "✅ Traefik completely removed from your system!"
