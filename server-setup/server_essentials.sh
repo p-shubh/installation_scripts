@@ -52,7 +52,6 @@ apt-get install -y -qq \
     software-properties-common apt-transport-https \
     htop iotop iftop nethogs nload \
     net-tools iproute2 iputils-ping dnsutils \
-    tcpdump nmap ss \
     sysstat atop \
     jq tree ncdu \
     fail2ban ufw \
