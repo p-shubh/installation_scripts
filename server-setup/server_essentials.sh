@@ -23,6 +23,13 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 section() { echo -e "\n${CYAN}${BOLD}=== $* ===${NC}"; }
 
+wait_apt_lock() {
+    while ! flock -n /var/lib/dpkg/lock-frontend true 2>/dev/null; do
+        echo "[INFO]  Waiting for apt lock to be released..."
+        sleep 5
+    done
+}
+
 [[ $EUID -ne 0 ]] && error "Run this script as root."
 
 # -- CONFIG -------------------------------------------------------------------
@@ -241,6 +248,7 @@ else
         https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
         tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt-get update -qq
+    wait_apt_lock
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
     info "Docker installed and started."
@@ -255,6 +263,7 @@ if ! dpkg -l | grep -q nvidia-container-toolkit 2>/dev/null; then
         sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
         tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null
     apt-get update -qq
+    wait_apt_lock
     apt-get install -y -qq nvidia-container-toolkit
     nvidia-ctk runtime configure --runtime=docker > /dev/null 2>&1 || true
     systemctl restart docker 2>/dev/null || true
@@ -268,6 +277,7 @@ fi
 # =============================================================================
 section "Automatic Security Updates"
 
+wait_apt_lock
 apt-get install -y -qq unattended-upgrades update-notifier-common
 
 cat > /etc/apt/apt.conf.d/50unattended-upgrades <<EOF
