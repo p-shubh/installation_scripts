@@ -62,8 +62,11 @@ apt-get install -y -qq \
     sysstat atop \
     jq tree ncdu \
     fail2ban ufw \
-    cron logrotate \
-    linux-headers-$(uname -r)
+    cron logrotate
+
+# Install kernel headers separately — exact version may not exist on VPS kernels
+apt-get install -y -qq linux-headers-$(uname -r) 2>/dev/null || \
+    apt-get install -y -qq linux-headers-generic || true
 
 info "Essential packages installed."
 
@@ -252,6 +255,17 @@ else
     apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
     info "Docker installed and started."
+fi
+
+# Create docker-compose shim so scripts using /usr/bin/docker-compose work
+if ! command -v docker-compose &>/dev/null; then
+    PLUGIN=$(find /usr/libexec/docker /usr/lib/docker -name 'docker-compose' 2>/dev/null | head -1)
+    if [ -n "$PLUGIN" ]; then
+        ln -sf "$PLUGIN" /usr/bin/docker-compose
+        info "docker-compose shim created at /usr/bin/docker-compose"
+    else
+        warn "docker-compose plugin not found, skipping shim"
+    fi
 fi
 
 # NVIDIA container toolkit (for GPU-accelerated Docker containers)
