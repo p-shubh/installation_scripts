@@ -259,7 +259,7 @@ fi
 
 # Create docker-compose shim so scripts using /usr/bin/docker-compose work
 if ! command -v docker-compose &>/dev/null; then
-    PLUGIN=$(find /usr/libexec/docker /usr/lib/docker -name 'docker-compose' 2>/dev/null | head -1)
+    PLUGIN=$(find /usr/libexec/docker /usr/lib/docker -name 'docker-compose' 2>/dev/null | head -1 || true)
     if [ -n "$PLUGIN" ]; then
         ln -sf "$PLUGIN" /usr/bin/docker-compose
         info "docker-compose shim created at /usr/bin/docker-compose"
