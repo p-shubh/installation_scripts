@@ -223,7 +223,7 @@ else
     CUDA_KEYRING_URL="https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb"
     TMP_DEB=$(mktemp /tmp/cuda-keyring-XXXX.deb)
     if wget -q "$CUDA_KEYRING_URL" -O "$TMP_DEB"; then
-        dpkg -i "$TMP_DEB" > /dev/null 2>&1
+        dpkg -i "$TMP_DEB" > /dev/null 2>&1 || true
         rm -f "$TMP_DEB"
         apt-get update -qq
         info "CUDA repo added. To install drivers run:"

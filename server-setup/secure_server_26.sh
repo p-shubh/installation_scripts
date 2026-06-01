@@ -30,7 +30,7 @@ SSH_PORT=22
 ALLOWED_PORTS=(80 443)
 # Paste your public key here if not already in /root/.ssh/authorized_keys.
 # Leave empty to skip (key must already be present).
-ROOT_PUBLIC_KEY=""
+ROOT_PUBLIC_KEY="${ROOT_PUBLIC_KEY:-""}"
 
 # =============================================================================
 #  STEP 1 — SSH key setup
