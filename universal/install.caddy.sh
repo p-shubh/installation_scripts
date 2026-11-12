@@ -19,7 +19,7 @@ fi
 cat > "$CADDYFILE" <<'EOF'
 # Global options
 {
-    email admin@yourdomain.com   # for Let's Encrypt notifications
+    email support@netsepio.com   # for Let's Encrypt notifications
 }
 
 # ── Add your domains below ──────────────────────────────

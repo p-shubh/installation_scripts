@@ -26,7 +26,7 @@ fi
 cat > "$CADDYFILE" <<'EOF'
 # Global options
 {
-    email admin@yourdomain.com   # for Let's Encrypt notifications
+    email support@netsepio.com   # for Let's Encrypt notifications
 }
 
 # ── Add your domains below ──────────────────────────────
@@ -104,7 +104,7 @@ nano /opt/caddy/Caddyfile
 Add your domain block:
 ```caddy
 {
-    email admin@yourdomain.com
+    email support@netsepio.com
 }
 
 # Your app — Caddy auto-handles HTTPS/SSL for free
