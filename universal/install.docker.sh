@@ -56,13 +56,19 @@ sudo systemctl enable docker
 # EOF
 # sudo systemctl restart docker
 
-# Step 10: Install Docker Compose (Optional)
+# Step 10 — Install Docker Compose Plugin
 echo "Installing Docker Compose..."
-sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -Po '"tag_name": "\K.*\d')" /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
 
-# Verify Docker Compose installation
+sudo apt-get update
+
+sudo apt-get install -y docker-compose-plugin docker-buildx-plugin
+
+# Verify Docker Compose
 echo "Verifying Docker Compose installation..."
-docker-compose --version
 
-echo "Docker setup is complete!"
+if docker compose version; then
+    echo "Docker Compose installed successfully!"
+else
+    echo "ERROR: Docker Compose installation failed."
+    exit 1
+fi
