@@ -122,7 +122,7 @@ check_sshd "allowagentforwarding"   "no"
 check_sshd "allowtcpforwarding"     "no"
 check_sshd "maxauthtries"           "3"
 
-ACTUAL_PORT=$(sshd -T 2>/dev/null | grep "^port " | awk '{print $2}' | head -n1)
+ACTUAL_PORT=$(sshd -T 2>/dev/null | awk 'tolower($1) == "port" {print $2; exit}')
 [[ "$ACTUAL_PORT" == "$SSH_PORT" ]] \
     && ok "SSH port: ${ACTUAL_PORT}" \
     || fail "SSH port: got '${ACTUAL_PORT}' (expected '${SSH_PORT}')"

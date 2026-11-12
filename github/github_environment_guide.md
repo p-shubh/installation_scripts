@@ -66,21 +66,21 @@ This deletes every secret inside the `prod` environment.
 
 ---
 
-
 # GitHub Repo Commands (gh CLI)
 
 ## Create a Private Repository with README
+
 ```bash
-gh repo create <repo-name> --private --add-readme
-````
+gh repo create cyrene-rbn-whitelabel --private --add-readme
+```
 
 ✅ Correct way to add a collaborator using gh
 
 Run this 👇
 
-gh api \
-  -X PUT \
-  repos/ans-mishra/cyrene-card/collaborators/adetyaz \
+gh api
+  -X PUT
+  repos/ans-mishra/baskets-ui/collaborators/fahmmin
   -f permission=push
 
 Permission options
@@ -99,14 +99,12 @@ You must be logged in via:
 
 gh auth status
 
-
 If not logged in:
 
 gh auth login
 
 🔍 Verify collaborator added
 gh api repos/ans-mishra/neurolov_whitelabel/collaborators
-
 
 ## Delete a Repository (Permanent)
 
@@ -184,7 +182,7 @@ gh repo add-collaborator <owner>/<repo-name> <github-username>
 ### Example
 
 ```bash
-gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe
+gh repo add-collaborator ans-mishra/evm-launhpad-contract p-shubh
 ```
 
 This sends an **invitation** to the user.
@@ -207,7 +205,11 @@ gh repo add-collaborator <owner>/<repo-name> <github-username> --permission <lev
 ### Example
 
 ```bash
-gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe --permission push
+gh api \
+  --method PUT \
+  -H "Accept: application/vnd.github+json" \
+  /repos/ans-mishra/zygo/collaborators/adetyaz \
+  -f permission=push
 ```
 
 ---
@@ -225,7 +227,6 @@ gh repo add-collaborator ans-mishra/testingPrivateRepsitoryCreation johndoe --pe
 ```bash
 gh api repos/<owner>/<repo-name>/collaborators
 ```
-
 
 Good question — GitHub **does not provide a direct `gh` command** like
 `gh repo env create` yet.

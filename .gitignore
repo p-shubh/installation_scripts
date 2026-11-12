@@ -26,3 +26,8 @@ go.work.sum
 /github/prod.env
 /github/env (2)
 /harsicorp/construct.txt
+database/cyrene/backup_local_test.sh
+.gitignore
+database/cyrene/cyrene_local_replica.md
+github/deform.txt
+database/cyrene/backup_server.sh
