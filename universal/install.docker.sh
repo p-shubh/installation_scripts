@@ -1,74 +1,205 @@
-#!/bin/bash
 
-# Docker Setup Script for Ubuntu
+#!/usr/bin/env bash
 
-# Step 1: Update Your System
-echo "Updating system..."
-sudo apt-get update
-sudo apt-get upgrade -y
+# =============================================================================
+# Docker Engine Installation Script
+# Supports Ubuntu 24.04+ and supported Ubuntu releases.
+# Installs Docker Engine, Buildx and Docker Compose Plugin.
+# =============================================================================
 
-# Step 2: Install Required Packages
-echo "Installing required packages..."
-sudo apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    software-properties-common
+set -Eeuo pipefail
 
-# Step 3: Add Docker’s Official GPG Key
-echo "Adding Docker’s official GPG key..."
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
 
-# Step 4: Set Up the Docker Repository
-echo "Setting up Docker repository..."
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# Step 5: Install Docker Engine
-echo "Installing Docker Engine..."
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+info() {
+    echo -e "${GREEN}[INFO]${NC} $*"
+}
 
-# Step 6: Verify the Installation
-echo "Verifying Docker installation..."
-sudo docker run hello-world
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $*"
+}
 
-# Step 7: Manage Docker as a Non-Root User (Optional)
-echo "Setting up Docker to run as non-root user..."
-sudo groupadd docker
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Verify that you can run docker commands without sudo
-echo "Verifying non-root Docker setup..."
-docker run hello-world
-
-# Step 8: Enable Docker to Start on Boot
-echo "Enabling Docker to start on boot..."
-sudo systemctl enable docker
-
-# Step 9: Configure Docker to Use a Remote Repository (Optional)
-# Uncomment and configure the following lines if needed
-# echo "Configuring Docker to use a remote repository..."
-# sudo tee /etc/docker/daemon.json > /dev/null <<EOF
-# {
-#   "registry-mirrors": ["https://your-mirror.com"]
-# }
-# EOF
-# sudo systemctl restart docker
-
-# Step 10 — Install Docker Compose Plugin
-echo "Installing Docker Compose..."
-
-sudo apt-get update
-
-sudo apt-get install -y docker-compose-plugin docker-buildx-plugin
-
-# Verify Docker Compose
-echo "Verifying Docker Compose installation..."
-
-if docker compose version; then
-    echo "Docker Compose installed successfully!"
-else
-    echo "ERROR: Docker Compose installation failed."
+error() {
+    echo -e "${RED}[ERROR]${NC} $*" >&2
     exit 1
+}
+
+trap 'error "Installation failed at line $LINENO. Exit code: $?"' ERR
+
+# -----------------------------------------------------------------------------
+# Preflight
+# -----------------------------------------------------------------------------
+
+if [[ "$EUID" -ne 0 ]]; then
+    error "Run this script as root: sudo bash install.docker.sh"
 fi
+
+if [[ ! -f /etc/os-release ]]; then
+    error "Cannot identify operating system."
+fi
+
+source /etc/os-release
+
+if [[ "${ID:-}" != "ubuntu" ]]; then
+    error "This script supports Ubuntu only."
+fi
+
+ARCH=$(dpkg --print-architecture)
+CODENAME="${VERSION_CODENAME:-}"
+
+if [[ -z "$CODENAME" ]]; then
+    error "Unable to determine Ubuntu release codename."
+fi
+
+info "Ubuntu version: ${VERSION_ID}"
+info "Codename: ${CODENAME}"
+info "Architecture: ${ARCH}"
+
+# -----------------------------------------------------------------------------
+# Step 1 - Update system and install dependencies
+# -----------------------------------------------------------------------------
+
+info "Updating package lists..."
+
+apt-get update
+
+info "Installing required packages..."
+
+apt-get install -y \
+    ca-certificates \
+    curl
+
+# -----------------------------------------------------------------------------
+# Step 2 - Configure Docker GPG key
+# -----------------------------------------------------------------------------
+
+info "Adding Docker official GPG key..."
+
+install -m 0755 -d /etc/apt/keyrings
+
+curl -fsSL \
+    https://download.docker.com/linux/ubuntu/gpg \
+    -o /etc/apt/keyrings/docker.asc
+
+chmod a+r /etc/apt/keyrings/docker.asc
+
+# -----------------------------------------------------------------------------
+# Step 3 - Configure Docker repository
+# -----------------------------------------------------------------------------
+
+info "Configuring Docker repository..."
+
+cat > /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: ${CODENAME}
+Components: stable
+Architectures: ${ARCH}
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+# -----------------------------------------------------------------------------
+# Step 4 - Install Docker Engine and plugins
+# -----------------------------------------------------------------------------
+
+info "Updating package lists..."
+
+apt-get update
+
+info "Installing Docker Engine, Buildx and Compose..."
+
+apt-get install -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
+
+# -----------------------------------------------------------------------------
+# Step 5 - Enable Docker service
+# -----------------------------------------------------------------------------
+
+info "Enabling Docker service..."
+
+systemctl enable --now docker
+
+if ! systemctl is-active --quiet docker; then
+    error "Docker service is not running."
+fi
+
+info "Docker service is running."
+
+# -----------------------------------------------------------------------------
+# Step 6 - Verify Docker Engine
+# -----------------------------------------------------------------------------
+
+info "Checking Docker Engine..."
+
+docker --version
+
+docker version
+
+# -----------------------------------------------------------------------------
+# Step 7 - Verify Docker Compose
+# -----------------------------------------------------------------------------
+
+info "Checking Docker Compose..."
+
+docker compose version
+
+# -----------------------------------------------------------------------------
+# Step 8 - Verify Docker Buildx
+# -----------------------------------------------------------------------------
+
+info "Checking Docker Buildx..."
+
+docker buildx version
+
+# -----------------------------------------------------------------------------
+# Step 9 - Test Docker installation
+# -----------------------------------------------------------------------------
+
+info "Running Docker hello-world test..."
+
+docker run --rm hello-world
+
+# -----------------------------------------------------------------------------
+# Step 10 - Optional non-root Docker access
+# -----------------------------------------------------------------------------
+
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
+    warn "Docker can optionally be configured for ${SUDO_USER}."
+    warn "The docker group grants root-equivalent privileges."
+    warn "To enable it manually, run:"
+    echo "  usermod -aG docker ${SUDO_USER}"
+    echo "  Then log out and log back in."
+fi
+
+# -----------------------------------------------------------------------------
+# Final report
+# -----------------------------------------------------------------------------
+
+echo ""
+echo -e "${GREEN}============================================${NC}"
+echo -e "${GREEN} Docker installation completed successfully${NC}"
+echo -e "${GREEN}============================================${NC}"
+
+echo ""
+echo "Docker Engine  : $(docker --version)"
+echo "Docker Compose : $(docker compose version)"
+echo "Docker Buildx  : $(docker buildx version)"
+echo "Docker Service : $(systemctl is-active docker)"
+echo ""
+echo "Useful commands:"
+echo "  docker ps"
+echo "  docker compose up -d"
+echo "  docker compose down"
+echo "  docker compose logs -f"
+echo ""
