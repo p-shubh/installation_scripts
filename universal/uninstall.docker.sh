@@ -93,4 +93,37 @@ PACKAGES=(
 )
 
 INSTALLED=()
-for package in "${PACKAGES[@]}"; do
+for package in "${PACKAGES[@]}"; do    if dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "install ok installed"; then
+        INSTALLED+=("$package")
+    fi
+done
+
+if [[ ${#INSTALLED[@]} -gt 0 ]]; then
+    info "Removing packages: ${INSTALLED[*]}"
+    DEBIAN_FRONTEND=noninteractive apt-get purge -y "${INSTALLED[@]}"
+else
+    info "No Docker packages installed."
+fi
+
+# Remove Docker apt repository and signing key added by install.docker.sh.
+info "Removing Docker apt repository configuration..."
+rm -f /etc/apt/sources.list.d/docker.sources \
+      /etc/apt/sources.list.d/docker.list \
+      /etc/apt/keyrings/docker.asc \
+      /etc/apt/keyrings/docker.gpg
+
+apt-get update || warn "apt-get update failed; check remaining apt sources."
+
+if [[ "$PURGE_DATA" == true ]]; then
+    warn "Deleting Docker data and configuration..."
+    rm -rf /var/lib/docker /var/lib/containerd /etc/docker
+    info "Docker data deleted."
+else
+    info "Preserved: /var/lib/docker, /var/lib/containerd, /etc/docker"
+fi
+
+echo ""
+info "Docker removal complete."
+if getent group docker >/dev/null; then
+    info "The 'docker' group still exists. Remove manually if unneeded: groupdel docker"
+fi
